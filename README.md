@@ -7,4 +7,18 @@ Just do these -
 python Helmet-detection.py
 
 
-Use pretrained model which i had added in the directory.
+Use pretrained model which i had added in the directory named ''yolo-coco''.
+
+------------
+
+Create a folder named - Output
+
+
+And just hit this - ' python livehelmet.py --output output/my.avi --yolo yolo-coco '
+
+
+
+-----------
+
+If you like the code , you can take a minute to endorse me here
+https://www.linkedin.com/in/ayazsaiyadhearthacker/
