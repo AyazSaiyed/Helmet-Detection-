@@ -1,173 +1,183 @@
-#AyazSaiyed
+#----------Developer - Ayaz Saiyed M.-------------#
+# USAGE
+
+# python livehelmet.py --output output/my.avi --yolo yolo-coco
 
 
-from time import sleep
-import cv2 as cv
-import argparse
-import sys
+# import the necessary packages
 import numpy as np
-import os.path
-from glob import glob
-#from PIL import image
-frame_count = 0             # used in mainloop  where we're extracting images., and then to drawPred( called by post process)
-frame_count_out=0           # used in post process loop, to get the no of specified class value.
-# Initialize the parameters
-confThreshold = 0.5  #Confidence threshold
-nmsThreshold = 0.4   #Non-maximum suppression threshold
-inpWidth = 416       #Width of network's input image
-inpHeight = 416      #Height of network's input image
+import argparse
+import imutils
+import time
+import cv2
+import os
+import pyttsx3 
+# construct the argument parse and parse the arguments
+ap = argparse.ArgumentParser()
+ap.add_argument("-i", "--input", required=False,
+	help="path to input video")
+ap.add_argument("-o", "--output", required=True,
+	help="path to output video")
+ap.add_argument("-y", "--yolo", required=True,
+	help="base path to YOLO directory")
+ap.add_argument("-c", "--confidence", type=float, default=0.5,
+	help="minimum probability to filter weak detections")
+ap.add_argument("-t", "--threshold", type=float, default=0.3,
+	help="threshold when applyong non-maxima suppression")
+args = vars(ap.parse_args())
 
+engine = pyttsx3.init() 
+# load the COCO class labels this YOLO model was trained on
+labelsPath = os.path.sep.join([args["yolo"], "cocohelmet.names"])
+LABELS = open(labelsPath).read().strip().split("\n")
 
-# Load names of classes
-classesFile = "obj.names";
-classes = None
-with open(classesFile, 'rt') as f:
-    classes = f.read().rstrip('\n').split('\n')
+# initialize a list of colors to represent each possible class label
+np.random.seed(42)
+COLORS = np.random.randint(0, 255, size=(len(LABELS), 3),
+	dtype="uint8")
 
-# Give the configuration and weight files for the model and load the network using them.
-modelConfiguration = "yolov3-obj.cfg";
-modelWeights = "yolov3-obj_2400.weights";
+# derive the paths to the YOLO weights and model configuration
+weightsPath = os.path.sep.join([args["yolo"], "yolov3-obj_2400.weights"])
+configPath = os.path.sep.join([args["yolo"], "yolov3-obj.cfg"])
 
-net = cv.dnn.readNetFromDarknet(modelConfiguration, modelWeights)
-net.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
-net.setPreferableTarget(cv.dnn.DNN_TARGET_CPU)
+# load our YOLO object detector trained on COCO dataset (80 classes)
+# and determine only the *output* layer names that we need from YOLO
+print("Ready to Load")
+net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
+ln = net.getLayerNames()
+ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
-# Get the names of the output layers
-def getOutputsNames(net):
-    # Get the names of all the layers in the network
-    layersNames = net.getLayerNames()
-    # Get the names of the output layers, i.e. the layers with unconnected outputs
-    return [layersNames[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+# initialize the video stream, pointer to output video file, and
+# frame dimensions - uncomment below line if inputting a video file rather than webcam.
+# vs = cv2.VideoCapture(args["input"])
 
+vs = cv2.VideoCapture(0)
 
-# Draw the predicted bounding box
-def drawPred(classId, conf, left, top, right, bottom):
+writer = None
+(W, H) = (None, None)
 
-    global frame_count
-# Draw a bounding box.
-    cv.rectangle(frame, (left, top), (right, bottom), (255, 178, 50), 3)
-    label = '%.2f' % conf
-    # Get the label for the class name and its confidence
-    if classes:
-        assert(classId < len(classes))
-        label = '%s:%s' % (classes[classId], label)
+# try to determine the total number of frames in the video file
+try:
+	prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
+		else cv2.CAP_PROP_FRAME_COUNT
+	total = int(vs.get(prop))
+	# print("{} total frames in video".format(total))
 
-    #Display the label at the top of the bounding box
-    labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-    top = max(top, labelSize[1])
-    #print(label)            #testing
-    #print(labelSize)        #testing
-    #print(baseLine)         #testing
+# an error occurred while trying to determine the total
+# number of frames in the video file
+except:
+	print("could not determine # of frames in video")
+	print("no approx. completion time can be provided")
+	total = -1
 
-    label_name,label_conf = label.split(':')    #spliting into class & confidance. will compare it with person.
-    if label_name == 'Helmet':
-                                            #will try to print of label have people.. or can put a counter to find the no of people occurance.
-                                        #will try if it satisfy the condition otherwise, we won't print the boxes or leave it.
-        cv.rectangle(frame, (left, top - round(1.5*labelSize[1])), (left + round(1.5*labelSize[0]), top + baseLine), (255, 255, 255), cv.FILLED)
-        cv.putText(frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0,0,0), 1)
-        frame_count+=1
+# loop over frames from the video file stream
+while True:
+	# read the next frame from the file
+	_, frame = vs.read()
+	print("In frame")
 
+	# # if the frame was not grabbed, then we have reached the end
+	# # of the stream
+	# if not grabbed:
+	# 	break
 
-    #print(frame_count)
-    if(frame_count> 0):
-        return frame_count
+	# if the frame dimensions are empty, grab them
+	if W is None or H is None:
+		(H, W) = frame.shape[:2]
 
+	# construct a blob from the input frame and then perform a forward
+	# pass of the YOLO object detector, giving us our bounding boxes
+	# and associated probabilities
+	blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
+		swapRB=True, crop=False)
+	net.setInput(blob)
+	start = time.time()
+	layerOutputs = net.forward(ln)
+	end = time.time()
 
+	# initialize our lists of detected bounding boxes, confidences,
+	# and class IDs, respectively
+	boxes = []
+	confidences = []
+	classIDs = []
 
+	# loop over each of the layer outputs
+	for output in layerOutputs:
+		# loop over each of the detections
+		for detection in output:
+			# extract the class ID and confidence (i.e., probability)
+			# of the current object detection
+			scores = detection[5:]
+			classID = np.argmax(scores)
+			confidence = scores[classID]
 
-# Remove the bounding boxes with low confidence using non-maxima suppression
-def postprocess(frame, outs):
-    frameHeight = frame.shape[0]
-    frameWidth = frame.shape[1]
-    global frame_count_out
-    frame_count_out=0
-    classIds = []
-    confidences = []
-    boxes = []
-    # Scan through all the bounding boxes output from the network and keep only the
-    # ones with high confidence scores. Assign the box's class label as the class with the highest score.
-    classIds = []               #have to fins which class have hieghest confidence........=====>>><<<<=======
-    confidences = []
-    boxes = []
-    for out in outs:
-        for detection in out:
-            scores = detection[5:]
-            classId = np.argmax(scores)
-            confidence = scores[classId]
-            if confidence > confThreshold:
-                center_x = int(detection[0] * frameWidth)
-                center_y = int(detection[1] * frameHeight)
-                width = int(detection[2] * frameWidth)
-                height = int(detection[3] * frameHeight)
-                left = int(center_x - width / 2)
-                top = int(center_y - height / 2)
-                classIds.append(classId)
-                #print(classIds)
-                confidences.append(float(confidence))
-                boxes.append([left, top, width, height])
+			# filter out weak predictions by ensuring the detected
+			# probability is greater than the minimum probability
+			if confidence > args["confidence"]:
+				# scale the bounding box coordinates back relative to
+				# the size of the image, keeping in mind that YOLO
+				# actually returns the center (x, y)-coordinates of
+				# the bounding box followed by the boxes' width and
+				# height
+				box = detection[0:4] * np.array([W, H, W, H])
+				(centerX, centerY, width, height) = box.astype("int")
 
-    # Perform non maximum suppression to eliminate redundant overlapping boxes with
-    # lower confidences.
-    indices = cv.dnn.NMSBoxes(boxes, confidences, confThreshold, nmsThreshold)
-    count_person=0 # for counting the classes in this loop.
-    for i in indices:
-        i = i[0]
-        box = boxes[i]
-        left = box[0]
-        top = box[1]
-        width = box[2]
-        height = box[3]
-               #this function in  loop is calling drawPred so, try pushing one test counter in parameter , so it can calculate it.
-        frame_count_out = drawPred(classIds[i], confidences[i], left, top, left + width, top + height)
-         #increase test counter till the loop end then print...
+				# use the center (x, y)-coordinates to derive the top
+				# and and left corner of the bounding box
+				x = int(centerX - (width / 2))
+				y = int(centerY - (height / 2))
 
-        #checking class, if it is a person or not
+				# update our list of bounding box coordinates,
+				# confidences, and class IDs
+				boxes.append([x, y, int(width), int(height)])
+				confidences.append(float(confidence))
+				classIDs.append(classID)
 
-        my_class='Helmet'                   #======================================== mycode .....
-        unknown_class = classes[classId]
+	# apply non-maxima suppression to suppress weak, overlapping
+	# bounding boxes
+	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
+		args["threshold"])
 
-        if my_class == unknown_class:
-            count_person += 1
-    #if(frame_count_out > 0):
-    print(frame_count_out)
+	# ensure at least one detection exists
+	if len(idxs) > 0:
+		# loop over the indexes we are keeping
+		for i in idxs.flatten():
+			# extract the bounding box coordinates
+			(x, y) = (boxes[i][0], boxes[i][1])
+			(w, h) = (boxes[i][2], boxes[i][3])
 
+			# draw a bounding box rectangle and label on the frame
+			color = [int(c) for c in COLORS[classIDs[i]]]
+			cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+			text = "{}: {:.4f}".format(LABELS[classIDs[i]],
+				confidences[i])
+			cv2.putText(frame, text, (x, y - 5),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+			textname = LABELS[classIDs[i]]
+			print("I just found",textname)
+			a = str(textname)
+			engine.say("I found"+a+"")
+		engine.runAndWait()
+	# cv2.imshow("a",frame)
+	# checking if the video writer is None
+	if writer is None:
+		# initialize our video writer
+		fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+		writer = cv2.VideoWriter(args["output"], fourcc, 1,
+			(frame.shape[1], frame.shape[0]), True)
 
-    if count_person >= 1:
-        path = 'test_out/'
-        frame_name=os.path.basename(fn)             # trimm the path and give file name.
-        cv.imwrite(str(path)+frame_name, frame)     # writing to folder.
-        #print(type(frame))
-        cv.imshow('img',frame)
-        cv.waitKey(800)
+		# some information on processing single frame
+		if total > 0:
+			elap = (end - start)
+			print("[INFO] single frame took {:.4f} seconds".format(elap))
+			print("[INFO] estimated total time to finish: {:.4f}".format(
+				elap * total))
 
+	# write the output frame to disk
 
-
-# Process inputs
-winName = 'Deep learning object detection in OpenCV'
-cv.namedWindow(winName, cv.WINDOW_NORMAL)
-
-
-
-for fn in glob('images/*.jpg'):
-    frame = cv.imread(fn)
-    frame_count =0
-
-    # Create a 4D blob from a frame.
-    blob = cv.dnn.blobFromImage(frame, 1/255, (inpWidth, inpHeight), [0,0,0], 1, crop=False)
-
-    # Sets the input to the network
-    net.setInput(blob)
-
-    # Runs the forward pass to get output of the output layers
-    outs = net.forward(getOutputsNames(net))
-
-    # Remove the bounding boxes with low confidence
-    postprocess(frame, outs)
-
-    # Put efficiency information. The function getPerfProfile returns the overall time for inference(t) and the timings for each of the layers(in layersTimes)
-    t, _ = net.getPerfProfile()
-    #print(t)
-    label = 'Inference time: %.2f ms' % (t * 1000.0 / cv.getTickFrequency())
-    #print(label)
-    cv.putText(frame, label, (0, 15), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
-    #print(label)
+	writer.write(frame)
+	
+# release the file pointers
+print("Cleaning up the stuff...")
+writer.release()
+vs.release()
