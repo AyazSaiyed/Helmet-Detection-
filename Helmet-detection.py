@@ -1,7 +1,7 @@
 #----------Developer - Ayaz Saiyed M.-------------#
 # USAGE
 
-# python livehelmet.py --output output/my.avi --yolo yolo-coco
+# python Helmet-detection.py --output output/my.avi --yolo yolo-coco
 
 
 # import the necessary packages
