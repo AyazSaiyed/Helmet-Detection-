@@ -12,8 +12,12 @@ Create a folder named - Output
 And just hit this - ' python livehelmet.py --output output/my.avi --yolo yolo-coco '
 
 
-You will need the weights file, which i have not uploaded here, if needed you can ping me on linkedin.
+
 -----------
 
 If you like the code , you can take a minute to endorse me here
 https://www.linkedin.com/in/ayazsaiyadhearthacker/
+
+-------------------------
+You will need the weights file, which i have not uploaded here, if needed you can ping me on linkedin.
+-------------------------
