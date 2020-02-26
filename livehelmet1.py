@@ -1,7 +1,7 @@
 #----------Developer - Ayaz Saiyed M.-------------#
 # USAGE
-# python yolo_video.py --output output/my.avi --yolo yolo-coco
-# python yolo_video.py --input videos/myold.mp4 --output output/my.avi --yolo yolo-coco
+# python livehelmet1.py --output output/my.avi --yolo yolo-coco
+# python livehelmet1.py --input videos/myold.mp4 --output output/my.avi --yolo yolo-coco
 
 # import the necessary packages
 import numpy as np
