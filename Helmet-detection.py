@@ -1,4 +1,4 @@
-#----------Developer - Ayaz Saiyed M.-------------#
+#----------Developer -  Ayaz Saiyed M.-------------#
 # USAGE
 
 # python Helmet-detection.py --output output/my.avi --yolo yolo-coco
