@@ -26,4 +26,4 @@ https://www.linkedin.com/in/ayazsaiyadhearthacker/
 You will need the weights file, which i have not uploaded here, if needed you can ping me on linkedin.
 -------------------------
 
-```Contact - https://ayazsaiyed.ml```
+```Contact - https://theayazsaiyed.ml```
