@@ -6,6 +6,9 @@ Implemented using Opencv, Python, YOLOV3.
 
 To use the pre-trained model, request [here](https://www.linkedin.com/in/ayazsaiyadhearthacker/) and keep the same in the ''yolo-coco'' to detect any helmet in the real-time video.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=AyazSaiyed/Helmet-Detection-&type=Date)](https://www.star-history.com/#AyazSaiyed/Helmet-Detection-&Date)
 
 ------------
 
